@@ -50,3 +50,23 @@ func TestChmodExecutable(t *testing.T) {
 		t.Fatalf("Unexpected Windows chmod +x cmd: %s", cmd)
 	}
 }
+
+func TestRemoveDir(t *testing.T) {
+	guestCmd, err := NewGuestCommands(UnixOSType)
+	if err != nil {
+		t.Fatalf("Failed to create new GuestCommands for OS: %s", UnixOSType)
+	}
+	cmd := guestCmd.RemoveDir("/tmp/somedir")
+	if cmd != "rm -rf '/tmp/somedir'" {
+		t.Fatalf("Unexpected Unix remove dir cmd: %s", cmd)
+	}
+
+	guestCmd, err = NewGuestCommands(WindowsOSType)
+	if err != nil {
+		t.Fatalf("Failed to create new GuestCommands for OS: %s", WindowsOSType)
+	}
+	cmd = guestCmd.RemoveDir("C:\\Temp\\SomeDir")
+	if cmd != "rm 'C:\\Temp\\SomeDir' -recurse -force" {
+		t.Fatalf("Unexpected Windows remove dir cmd: %s", cmd)
+	}
+}
