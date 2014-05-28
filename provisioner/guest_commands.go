@@ -43,7 +43,7 @@ func (g *GuestCommands) ChmodExecutable(path string) string {
 	return fmt.Sprintf(g.commands().chmodExecutable, path)
 }
 
-func (g *GuestCommands) Mkdir(path string) string {
+func (g *GuestCommands) CreateDir(path string) string {
 	return fmt.Sprintf(g.commands().mkdir, path)
 }
 

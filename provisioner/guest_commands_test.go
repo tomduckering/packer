@@ -11,23 +11,23 @@ func TestNewGuestCommands(t *testing.T) {
 	}
 }
 
-func TestMkdir(t *testing.T) {
+func TestCreateDir(t *testing.T) {
 	guestCmd, err := NewGuestCommands(UnixOSType)
 	if err != nil {
 		t.Fatalf("Failed to create new GuestCommands for OS: %s", UnixOSType)
 	}
-	cmd := guestCmd.Mkdir("/tmp/tempdir")
+	cmd := guestCmd.CreateDir("/tmp/tempdir")
 	if cmd != "mkdir -p '/tmp/tempdir'" {
-		t.Fatalf("Unexpected Unix mkdir cmd: %s", cmd)
+		t.Fatalf("Unexpected Unix create dir cmd: %s", cmd)
 	}
 
 	guestCmd, err = NewGuestCommands(WindowsOSType)
 	if err != nil {
 		t.Fatalf("Failed to create new GuestCommands for OS: %s", WindowsOSType)
 	}
-	cmd = guestCmd.Mkdir("C:\\Windows\\Temp\\tempdir")
+	cmd = guestCmd.CreateDir("C:\\Windows\\Temp\\tempdir")
 	if cmd != "New-Item -ItemType directory -Force -ErrorAction SilentlyContinue -Path 'C:\\Windows\\Temp\\tempdir'" {
-		t.Fatalf("Unexpected Windows mkdir cmd: %s", cmd)
+		t.Fatalf("Unexpected Windows create dir cmd: %s", cmd)
 	}
 }
 

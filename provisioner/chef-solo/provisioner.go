@@ -115,7 +115,7 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		return fmt.Errorf("Invalid guest_os_type: \"%s\"", p.config.GuestOSType)
 	}
 
-	p.guestCommands, err = NewGuestCommands(p.config.GuestOSType)
+	p.guestCommands, err = provisioner.NewGuestCommands(p.config.GuestOSType)
 	if err != nil {
 		return fmt.Errorf("Invalid guest_os_type: \"%s\"", p.config.GuestOSType)
 	}
@@ -458,7 +458,7 @@ func (p *Provisioner) createJson(ui packer.Ui, comm packer.Communicator) (string
 func (p *Provisioner) createDir(ui packer.Ui, comm packer.Communicator, dir string) error {
 	ui.Message(fmt.Sprintf("Creating directory: %s", dir))
 	cmd := &packer.RemoteCmd{
-		Command: p.guestCommands.Mkdir(dir),
+		Command: p.guestCommands.CreateDir(dir),
 	}
 
 	if err := cmd.StartWithUi(comm, ui); err != nil {
