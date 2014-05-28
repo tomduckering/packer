@@ -15,13 +15,34 @@ import (
 
 	"github.com/mitchellh/packer/common"
 	"github.com/mitchellh/packer/packer"
+	"github.com/mitchellh/packer/provisioner"
 )
+
+type guestOSTypeConfig struct {
+	executeCommand string
+	installCommand string
+	stagingDir     string
+}
+
+var guestOSTypeConfigs = map[string]guestOSTypeConfig{
+	provisioner.UnixOSType: guestOSTypeConfig{
+		executeCommand: "{{if .Sudo}}sudo {{end}}chef-client --no-color -c {{.ConfigPath}} -j {{.JsonPath}}",
+		installCommand: "curl -L https://www.opscode.com/chef/install.sh | {{if .Sudo}}sudo {{end}}bash",
+		stagingDir:     "/tmp/packer-chef-client",
+	},
+	provisioner.WindowsOSType: guestOSTypeConfig{
+		executeCommand: "c:/opscode/chef/bin/chef-solo --no-color -c {{.ConfigPath}} -j {{.JsonPath}}",
+		installCommand: "(New-Object System.Net.WebClient).DownloadFile('http://www.getchef.com/chef/install.msi', 'C:/Windows/Temp/chef.msi');Start-Process 'msiexec' -ArgumentList '/qb /i C:\\Windows\\Temp\\chef.msi' -NoNewWindow -Wait",
+		stagingDir:     "C:/Windows/Temp/packer-chef-client",
+	},
+}
 
 type Config struct {
 	common.PackerConfig `mapstructure:",squash"`
 
 	ConfigTemplate       string `mapstructure:"config_template"`
 	ExecuteCommand       string `mapstructure:"execute_command"`
+	GuestOSType          string `mapstructure:"guest_os_type"`
 	InstallCommand       string `mapstructure:"install_command"`
 	Json                 map[string]interface{}
 	NodeName             string   `mapstructure:"node_name"`
@@ -39,7 +60,9 @@ type Config struct {
 }
 
 type Provisioner struct {
-	config Config
+	config            Config
+	guestOSTypeConfig guestOSTypeConfig
+	guestCommands     *provisioner.GuestCommands
 }
 
 type ConfigTemplate struct {
@@ -71,23 +94,36 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	}
 	p.config.tpl.UserVars = p.config.PackerUserVars
 
+	if p.config.GuestOSType == "" {
+		p.config.GuestOSType = provisioner.DefaultOSType
+	}
+	p.config.GuestOSType = strings.ToLower(p.config.GuestOSType)
+
+	var ok bool
+	p.guestOSTypeConfig, ok = guestOSTypeConfigs[p.config.GuestOSType]
+	if !ok {
+		return fmt.Errorf("Invalid guest_os_type: \"%s\"", p.config.GuestOSType)
+	}
+
+	p.guestCommands, err = provisioner.NewGuestCommands(p.config.GuestOSType)
+	if err != nil {
+		return fmt.Errorf("Invalid guest_os_type: \"%s\"", p.config.GuestOSType)
+	}
+
 	if p.config.ExecuteCommand == "" {
-		p.config.ExecuteCommand = "{{if .Sudo}}sudo {{end}}chef-client " +
-			"--no-color -c {{.ConfigPath}} -j {{.JsonPath}}"
+		p.config.ExecuteCommand = p.guestOSTypeConfig.executeCommand
 	}
 
 	if p.config.InstallCommand == "" {
-		p.config.InstallCommand = "curl -L " +
-			"https://www.opscode.com/chef/install.sh | " +
-			"{{if .Sudo}}sudo {{end}}bash"
+		p.config.InstallCommand = p.guestOSTypeConfig.installCommand
+	}
+
+	if p.config.StagingDir == "" {
+		p.config.StagingDir = p.guestOSTypeConfig.stagingDir
 	}
 
 	if p.config.RunList == nil {
 		p.config.RunList = make([]string, 0)
-	}
-
-	if p.config.StagingDir == "" {
-		p.config.StagingDir = "/tmp/packer-chef-client"
 	}
 
 	// Accumulate any errors
@@ -230,7 +266,7 @@ func (p *Provisioner) Provision(ui packer.Ui, comm packer.Communicator) error {
 	}
 
 	if err := p.removeDir(ui, comm, p.config.StagingDir); err != nil {
-		return fmt.Errorf("Error removing /etc/chef directory: %s", err)
+		return fmt.Errorf("Error removing %s: %s", p.config.StagingDir, err)
 	}
 
 	return nil
@@ -240,20 +276,6 @@ func (p *Provisioner) Cancel() {
 	// Just hard quit. It isn't a big deal if what we're doing keeps
 	// running on the other side.
 	os.Exit(0)
-}
-
-func (p *Provisioner) uploadDirectory(ui packer.Ui, comm packer.Communicator, dst string, src string) error {
-	if err := p.createDir(ui, comm, dst); err != nil {
-		return err
-	}
-
-	// Make sure there is a trailing "/" so that the directory isn't
-	// created on the other side.
-	if src[len(src)-1] != '/' {
-		src = src + "/"
-	}
-
-	return comm.UploadDir(dst, src, nil)
 }
 
 func (p *Provisioner) createConfig(ui packer.Ui, comm packer.Communicator, nodeName string, serverUrl string, remoteKeyPath string, validationClientName string) (string, error) {
@@ -326,7 +348,7 @@ func (p *Provisioner) createJson(ui packer.Ui, comm packer.Communicator) (string
 func (p *Provisioner) createDir(ui packer.Ui, comm packer.Communicator, dir string) error {
 	ui.Message(fmt.Sprintf("Creating directory: %s", dir))
 	cmd := &packer.RemoteCmd{
-		Command: fmt.Sprintf("sudo mkdir -p '%s'", dir),
+		Command: p.guestCommands.CreateDir(dir),
 	}
 
 	if err := cmd.StartWithUi(comm, ui); err != nil {
@@ -360,6 +382,7 @@ func (p *Provisioner) cleanClient(ui packer.Ui, comm packer.Communicator, node s
 	ui.Say("Cleaning up chef client...")
 	app := fmt.Sprintf("knife client delete %s -y", node)
 
+	// This will fail on Windows hosts
 	cmd := exec.Command("sh", "-c", app)
 	out, err := cmd.Output()
 
@@ -375,7 +398,7 @@ func (p *Provisioner) cleanClient(ui packer.Ui, comm packer.Communicator, node s
 func (p *Provisioner) removeDir(ui packer.Ui, comm packer.Communicator, dir string) error {
 	ui.Message(fmt.Sprintf("Removing directory: %s", dir))
 	cmd := &packer.RemoteCmd{
-		Command: fmt.Sprintf("sudo rm -rf %s", dir),
+		Command: p.guestCommands.RemoveDir(dir),
 	}
 
 	if err := cmd.StartWithUi(comm, ui); err != nil {
