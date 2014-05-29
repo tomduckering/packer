@@ -29,7 +29,7 @@ var guestOSTypeConfigs = map[string]guestOSTypeConfig{
 		stagingDir:     "/tmp/packer-chef-solo",
 	},
 	provisioner.WindowsOSType: guestOSTypeConfig{
-		executeCommand: "c:/opscode/chef/bin/chef-solo --no-color -c {{.ConfigPath}} -j {{.JsonPath}}",
+		executeCommand: "c:/opscode/chef/bin/chef-solo.bat --no-color -c {{.ConfigPath}} -j {{.JsonPath}}",
 		installCommand: "(New-Object System.Net.WebClient).DownloadFile('http://www.getchef.com/chef/install.msi', 'C:/Windows/Temp/chef.msi');Start-Process 'msiexec' -ArgumentList '/qb /i C:\\Windows\\Temp\\chef.msi' -NoNewWindow -Wait",
 		stagingDir:     "C:/Windows/Temp/packer-chef-solo",
 	},
