@@ -26,7 +26,7 @@ func TestCreateDir(t *testing.T) {
 		t.Fatalf("Failed to create new GuestCommands for OS: %s", WindowsOSType)
 	}
 	cmd = guestCmd.CreateDir("C:\\Windows\\Temp\\tempdir")
-	if cmd != "New-Item -ItemType directory -Force -ErrorAction SilentlyContinue -Path 'C:\\Windows\\Temp\\tempdir'" {
+	if cmd != "New-Item -ItemType directory -Force -ErrorAction SilentlyContinue -Path \"C:\\Windows\\Temp\\tempdir\"" {
 		t.Fatalf("Unexpected Windows create dir cmd: %s", cmd)
 	}
 }
@@ -66,7 +66,7 @@ func TestRemoveDir(t *testing.T) {
 		t.Fatalf("Failed to create new GuestCommands for OS: %s", WindowsOSType)
 	}
 	cmd = guestCmd.RemoveDir("C:\\Temp\\SomeDir")
-	if cmd != "rm 'C:\\Temp\\SomeDir' -recurse -force" {
+	if cmd != "rm \"C:\\Temp\\SomeDir\" -recurse -force" {
 		t.Fatalf("Unexpected Windows remove dir cmd: %s", cmd)
 	}
 }

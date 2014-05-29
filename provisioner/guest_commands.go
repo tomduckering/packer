@@ -22,8 +22,8 @@ var guestOSTypeCommands = map[string]guestOSTypeCommand{
 	},
 	WindowsOSType: guestOSTypeCommand{
 		chmodExecutable: "echo 'skipping chmod %s'", // no-op
-		mkdir:           "New-Item -ItemType directory -Force -ErrorAction SilentlyContinue -Path '%s'",
-		removeDir:       "rm '%s' -recurse -force",
+		mkdir:           "New-Item -ItemType directory -Force -ErrorAction SilentlyContinue -Path \"%s\"",
+		removeDir:       "rm \"%s\" -recurse -force",
 	},
 }
 
