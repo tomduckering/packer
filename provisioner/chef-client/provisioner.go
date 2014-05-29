@@ -32,8 +32,8 @@ var guestOSTypeConfigs = map[string]guestOSTypeConfig{
 	},
 	provisioner.WindowsOSType: guestOSTypeConfig{
 		executeCommand: "c:/opscode/chef/bin/chef-client.bat --no-color -c {{.ConfigPath}} -j {{.JsonPath}}",
-		installCommand: "(New-Object System.Net.WebClient).DownloadFile('http://www.getchef.com/chef/install.msi', 'C:/Windows/Temp/chef.msi');Start-Process 'msiexec' -ArgumentList '/qb /i C:\\Windows\\Temp\\chef.msi' -NoNewWindow -Wait",
-		stagingDir:     "C:/Windows/Temp/packer-chef-client",
+		installCommand: "(New-Object System.Net.WebClient).DownloadFile('http://www.getchef.com/chef/install.msi', \"$env:TEMP/chef.msi\");Start-Process 'msiexec' -ArgumentList \"/qb /i $env:TEMP\\chef.msi\" -NoNewWindow -Wait",
+		stagingDir:     "$env:TEMP/packer-chef-client",
 	},
 }
 
