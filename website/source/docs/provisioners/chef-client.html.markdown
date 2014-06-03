@@ -40,6 +40,10 @@ since it will allow the provisioner to clean up the node/client.
   then you should use a custom configuration template. See the dedicated
   "Chef Configuration" section below for more details.
 
+* `encrypted_data_bag_secret_path` (string) - The path to the file containing
+  the secret for encrypted data bags. By default, this is empty, so no
+  secret will be available.
+
 * `execute_command` (string) - The command used to execute Chef. This has
   various [configuration template variables](/docs/templates/configuration-templates.html)
   available. See below for more information.

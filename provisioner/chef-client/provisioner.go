@@ -40,21 +40,22 @@ var guestOSTypeConfigs = map[string]guestOSTypeConfig{
 type Config struct {
 	common.PackerConfig `mapstructure:",squash"`
 
-	ConfigTemplate       string `mapstructure:"config_template"`
-	ExecuteCommand       string `mapstructure:"execute_command"`
-	GuestOSType          string `mapstructure:"guest_os_type"`
-	InstallCommand       string `mapstructure:"install_command"`
-	Json                 map[string]interface{}
-	NodeName             string   `mapstructure:"node_name"`
-	PreventSudo          bool     `mapstructure:"prevent_sudo"`
-	RunList              []string `mapstructure:"run_list"`
-	ServerUrl            string   `mapstructure:"server_url"`
-	SkipCleanClient      bool     `mapstructure:"skip_clean_client"`
-	SkipCleanNode        bool     `mapstructure:"skip_clean_node"`
-	SkipInstall          bool     `mapstructure:"skip_install"`
-	StagingDir           string   `mapstructure:"staging_directory"`
-	ValidationKeyPath    string   `mapstructure:"validation_key_path"`
-	ValidationClientName string   `mapstructure:"validation_client_name"`
+	ConfigTemplate             string `mapstructure:"config_template"`
+	EncryptedDataBagSecretPath string `mapstructure:"encrypted_data_bag_secret_path"`
+	ExecuteCommand             string `mapstructure:"execute_command"`
+	GuestOSType                string `mapstructure:"guest_os_type"`
+	InstallCommand             string `mapstructure:"install_command"`
+	Json                       map[string]interface{}
+	NodeName                   string   `mapstructure:"node_name"`
+	PreventSudo                bool     `mapstructure:"prevent_sudo"`
+	RunList                    []string `mapstructure:"run_list"`
+	ServerUrl                  string   `mapstructure:"server_url"`
+	SkipCleanClient            bool     `mapstructure:"skip_clean_client"`
+	SkipCleanNode              bool     `mapstructure:"skip_clean_node"`
+	SkipInstall                bool     `mapstructure:"skip_install"`
+	StagingDir                 string   `mapstructure:"staging_directory"`
+	ValidationKeyPath          string   `mapstructure:"validation_key_path"`
+	ValidationClientName       string   `mapstructure:"validation_client_name"`
 
 	tpl *packer.ConfigTemplate
 }
@@ -66,10 +67,11 @@ type Provisioner struct {
 }
 
 type ConfigTemplate struct {
-	NodeName             string
-	ServerUrl            string
-	ValidationKeyPath    string
-	ValidationClientName string
+	EncryptedDataBagSecretPath string
+	NodeName                   string
+	ServerUrl                  string
+	ValidationKeyPath          string
+	ValidationClientName       string
 }
 
 type ExecuteTemplate struct {
@@ -130,11 +132,12 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	errs := common.CheckUnusedConfig(md)
 
 	templates := map[string]*string{
-		"chef_server_url":     &p.config.ServerUrl,
-		"config_template":     &p.config.ConfigTemplate,
-		"node_name":           &p.config.NodeName,
-		"staging_dir":         &p.config.StagingDir,
-		"validation_key_path": &p.config.ValidationKeyPath,
+		"chef_server_url":                &p.config.ServerUrl,
+		"config_template":                &p.config.ConfigTemplate,
+		"node_name":                      &p.config.NodeName,
+		"staging_dir":                    &p.config.StagingDir,
+		"validation_key_path":            &p.config.ValidationKeyPath,
+		"encrypted_data_bag_secret_path": &p.config.EncryptedDataBagSecretPath,
 	}
 
 	for n, ptr := range templates {
@@ -181,6 +184,15 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		} else if fi.IsDir() {
 			errs = packer.MultiErrorAppend(
 				errs, fmt.Errorf("Config template path must be a file: %s", err))
+		}
+	}
+
+	if p.config.EncryptedDataBagSecretPath != "" {
+		pFileInfo, err := os.Stat(p.config.EncryptedDataBagSecretPath)
+
+		if err != nil || pFileInfo.IsDir() {
+			errs = packer.MultiErrorAppend(
+				errs, fmt.Errorf("Bad encrypted data bag secret '%s': %s", p.config.EncryptedDataBagSecretPath, err))
 		}
 	}
 
@@ -231,6 +243,14 @@ func (p *Provisioner) Provision(ui packer.Ui, comm packer.Communicator) error {
 		return fmt.Errorf("Error creating staging directory: %s", err)
 	}
 
+	encryptedDataBagSecretPath := ""
+	if p.config.EncryptedDataBagSecretPath != "" {
+		encryptedDataBagSecretPath = fmt.Sprintf("%s/encrypted_data_bag_secret", p.config.StagingDir)
+		if err := p.uploadFile(ui, comm, encryptedDataBagSecretPath, p.config.EncryptedDataBagSecretPath); err != nil {
+			return fmt.Errorf("Error uploading encrypted data bag secret: %s", err)
+		}
+	}
+
 	if p.config.ValidationKeyPath != "" {
 		remoteValidationKeyPath = fmt.Sprintf("%s/validation.pem", p.config.StagingDir)
 		if err := p.copyValidationKey(ui, comm, remoteValidationKeyPath); err != nil {
@@ -239,7 +259,7 @@ func (p *Provisioner) Provision(ui packer.Ui, comm packer.Communicator) error {
 	}
 
 	configPath, err := p.createConfig(
-		ui, comm, nodeName, serverUrl, remoteValidationKeyPath, p.config.ValidationClientName)
+		ui, comm, nodeName, serverUrl, encryptedDataBagSecretPath, remoteValidationKeyPath, p.config.ValidationClientName)
 	if err != nil {
 		return fmt.Errorf("Error creating Chef config file: %s", err)
 	}
@@ -279,7 +299,20 @@ func (p *Provisioner) Cancel() {
 	os.Exit(0)
 }
 
-func (p *Provisioner) createConfig(ui packer.Ui, comm packer.Communicator, nodeName string, serverUrl string, remoteKeyPath string, validationClientName string) (string, error) {
+func (p *Provisioner) uploadFile(ui packer.Ui, comm packer.Communicator, dst string, src string) error {
+	f, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return comm.Upload(dst, f)
+}
+
+func (p *Provisioner) createConfig(ui packer.Ui, comm packer.Communicator,
+	nodeName string, serverUrl string, encryptedDataBagSecretPath string,
+	remoteKeyPath string, validationClientName string) (string, error) {
+
 	ui.Message("Creating configuration file 'client.rb'")
 
 	// Read the template
@@ -300,10 +333,11 @@ func (p *Provisioner) createConfig(ui packer.Ui, comm packer.Communicator, nodeN
 	}
 
 	configString, err := p.config.tpl.Process(tpl, &ConfigTemplate{
-		NodeName:             nodeName,
-		ServerUrl:            serverUrl,
-		ValidationKeyPath:    remoteKeyPath,
-		ValidationClientName: validationClientName,
+		EncryptedDataBagSecretPath: encryptedDataBagSecretPath,
+		NodeName:                   nodeName,
+		ServerUrl:                  serverUrl,
+		ValidationKeyPath:          remoteKeyPath,
+		ValidationClientName:       validationClientName,
 	})
 	if err != nil {
 		return "", err
@@ -561,6 +595,9 @@ var DefaultConfigTemplate = `
 log_level        :info
 log_location     STDOUT
 chef_server_url  "{{.ServerUrl}}"
+{{if ne .EncryptedDataBagSecretPath ""}}
+encrypted_data_bag_secret "{{.EncryptedDataBagSecretPath}}"
+{{end}}
 {{if ne .ValidationClientName ""}}
 validation_client_name "{{.ValidationClientName}}"
 {{else}}

@@ -120,30 +120,43 @@ func TestProvisionerPrepare_serverUrl(t *testing.T) {
 	}
 }
 
-func TestProvisionerPrepare_validationKeyPath(t *testing.T) {
-	var p Provisioner
-
-	// Test not set
-	config := testConfig()
-	delete(config, "validation_key_path")
-	err := p.Prepare(config)
-	if err != nil {
-		t.Fatalf("err: %s", err)
+func TestProvisionerPrepare_keyPaths(t *testing.T) {
+	commands := []string{
+		"validation_key_path",
+		"encrypted_data_bag_secret_path",
 	}
 
-	// Test invalid template
-	config = testConfig()
-	config["validation_key_path"] = "{{if NOPE}}"
-	err = p.Prepare(config)
-	if err == nil {
-		t.Fatal("should error")
-	}
+	for _, command := range commands {
+		var p Provisioner
 
-	// Test good template
-	config = testConfig()
-	config["validation_key_path"] = "{{.Foo}}"
-	err = p.Prepare(config)
-	if err != nil {
-		t.Fatalf("err: %s", err)
+		// Test not set
+		config := testConfig()
+		delete(config, command)
+		err := p.Prepare(config)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+
+		// Test invalid template
+		config = testConfig()
+		config[command] = "{{if NOPE}}"
+		err = p.Prepare(config)
+		if err == nil {
+			t.Fatal("should error")
+		}
+
+		// Test with a file
+		tf, err := ioutil.TempFile("", "packer")
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		defer os.Remove(tf.Name())
+
+		config = testConfig()
+		config[command] = tf.Name()
+		err = p.Prepare(config)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
 	}
 }
