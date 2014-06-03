@@ -114,7 +114,14 @@ The default value for the configuration template is:
 log_level        :info
 log_location     STDOUT
 chef_server_url  "{{.ServerUrl}}"
+{{if ne .EncryptedDataBagSecretPath ""}}
+encrypted_data_bag_secret "{{.EncryptedDataBagSecretPath}}"
+{{end}}
+{{if ne .ValidationClientName ""}}
+validation_client_name "{{.ValidationClientName}}"
+{{else}}
 validation_client_name "chef-validator"
+{{end}}
 {{if ne .ValidationKeyPath ""}}
 validation_key "{{.ValidationKeyPath}}"
 {{end}}
@@ -126,8 +133,10 @@ node_name "{{.NodeName}}"
 This template is a [configuration template](/docs/templates/configuration-templates.html)
 and has a set of variables available to use:
 
+* `EncryptedDataBagSecretPath` - The path to the secret key file to decrypt encrypted data bags.
 * `NodeName` - The node name set in the configuration.
 * `ServerUrl` - The URL of the Chef Server set in the configuration.
+* `ValidationClientName` - The name of the client used for validation.
 * `ValidationKeyPath` - Path to the validation key, if it is set.
 
 ## Execute Command
