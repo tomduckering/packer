@@ -168,8 +168,8 @@ When guest_os_type is set to "windows", Packer uses the following command to
 install the latest version of Chef:
 
 ```
-(New-Object System.Net.WebClient).DownloadFile('http://www.getchef.com/chef/install.msi', \"$env:TEMP/chef.msi\"); \
-Start-Process 'msiexec' -ArgumentList \"/qb /i $env:TEMP\\chef.msi\" -NoNewWindow -Wait
+(New-Object System.Net.WebClient).DownloadFile('http://www.getchef.com/chef/install.msi', 'C:\\Windows\\Temp\\chef.msi');
+Start-Process 'msiexec' -ArgumentList '/qb /i C:\\Windows\\Temp\\chef.msi' -NoNewWindow -Wait
 ```
 
 This command can be customized using the `install_command` configuration.
