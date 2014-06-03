@@ -2,6 +2,7 @@ package provisioner
 
 import (
 	"fmt"
+	"strings"
 )
 
 const UnixOSType = "unix"
@@ -22,8 +23,8 @@ var guestOSTypeCommands = map[string]guestOSTypeCommand{
 	},
 	WindowsOSType: guestOSTypeCommand{
 		chmodExecutable: "echo 'skipping chmod %s'", // no-op
-		mkdir:           "New-Item -ItemType directory -Force -ErrorAction SilentlyContinue -Path \"%s\"",
-		removeDir:       "rm \"%s\" -recurse -force",
+		mkdir:           "New-Item -ItemType directory -Force -ErrorAction SilentlyContinue -Path %s",
+		removeDir:       "rm %s -recurse -force",
 	},
 }
 
@@ -40,17 +41,24 @@ func NewGuestCommands(osType string) (*GuestCommands, error) {
 }
 
 func (g *GuestCommands) ChmodExecutable(path string) string {
-	return fmt.Sprintf(g.commands().chmodExecutable, path)
+	return fmt.Sprintf(g.commands().chmodExecutable, g.escapePath(path))
 }
 
 func (g *GuestCommands) CreateDir(path string) string {
-	return fmt.Sprintf(g.commands().mkdir, path)
+	return fmt.Sprintf(g.commands().mkdir, g.escapePath(path))
 }
 
 func (g *GuestCommands) RemoveDir(path string) string {
-	return fmt.Sprintf(g.commands().removeDir, path)
+	return fmt.Sprintf(g.commands().removeDir, g.escapePath(path))
 }
 
 func (g *GuestCommands) commands() guestOSTypeCommand {
 	return guestOSTypeCommands[g.GuestOSType]
+}
+
+func (g *GuestCommands) escapePath(path string) string {
+	if g.GuestOSType == UnixOSType {
+		return path
+	}
+	return strings.Replace(path, " ", "` ", -1)
 }
