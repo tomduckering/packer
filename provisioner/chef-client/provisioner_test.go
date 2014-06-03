@@ -119,3 +119,31 @@ func TestProvisionerPrepare_serverUrl(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 }
+
+func TestProvisionerPrepare_validationKeyPath(t *testing.T) {
+	var p Provisioner
+
+	// Test not set
+	config := testConfig()
+	delete(config, "validation_key_path")
+	err := p.Prepare(config)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Test invalid template
+	config = testConfig()
+	config["validation_key_path"] = "{{if NOPE}}"
+	err = p.Prepare(config)
+	if err == nil {
+		t.Fatal("should error")
+	}
+
+	// Test good template
+	config = testConfig()
+	config["validation_key_path"] = "{{.Foo}}"
+	err = p.Prepare(config)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+}

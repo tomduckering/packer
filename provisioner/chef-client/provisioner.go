@@ -130,10 +130,11 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	errs := common.CheckUnusedConfig(md)
 
 	templates := map[string]*string{
-		"config_template": &p.config.ConfigTemplate,
-		"node_name":       &p.config.NodeName,
-		"staging_dir":     &p.config.StagingDir,
-		"chef_server_url": &p.config.ServerUrl,
+		"chef_server_url":     &p.config.ServerUrl,
+		"config_template":     &p.config.ConfigTemplate,
+		"node_name":           &p.config.NodeName,
+		"staging_dir":         &p.config.StagingDir,
+		"validation_key_path": &p.config.ValidationKeyPath,
 	}
 
 	for n, ptr := range templates {
