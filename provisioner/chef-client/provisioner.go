@@ -40,6 +40,7 @@ var guestOSTypeConfigs = map[string]guestOSTypeConfig{
 type Config struct {
 	common.PackerConfig `mapstructure:",squash"`
 
+	ChefEnvironment            string `mapstructure:"chef_environment"`
 	ConfigTemplate             string `mapstructure:"config_template"`
 	EncryptedDataBagSecretPath string `mapstructure:"encrypted_data_bag_secret_path"`
 	ExecuteCommand             string `mapstructure:"execute_command"`
@@ -67,6 +68,7 @@ type Provisioner struct {
 }
 
 type ConfigTemplate struct {
+	ChefEnvironment      string
 	EncryptedDataBagSecretPath string
 	NodeName                   string
 	ServerUrl                  string
@@ -132,6 +134,7 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	errs := common.CheckUnusedConfig(md)
 
 	templates := map[string]*string{
+		"chef_environment": &p.config.ChefEnvironment,
 		"chef_server_url":                &p.config.ServerUrl,
 		"config_template":                &p.config.ConfigTemplate,
 		"node_name":                      &p.config.NodeName,
@@ -259,7 +262,8 @@ func (p *Provisioner) Provision(ui packer.Ui, comm packer.Communicator) error {
 	}
 
 	configPath, err := p.createConfig(
-		ui, comm, nodeName, serverUrl, encryptedDataBagSecretPath, remoteValidationKeyPath, p.config.ValidationClientName)
+		ui, comm, nodeName, serverUrl, encryptedDataBagSecretPath, remoteValidationKeyPath,
+		p.config.ValidationClientName, p.config.ChefEnvironment)
 	if err != nil {
 		return fmt.Errorf("Error creating Chef config file: %s", err)
 	}
@@ -311,7 +315,7 @@ func (p *Provisioner) uploadFile(ui packer.Ui, comm packer.Communicator, dst str
 
 func (p *Provisioner) createConfig(ui packer.Ui, comm packer.Communicator,
 	nodeName string, serverUrl string, encryptedDataBagSecretPath string,
-	remoteKeyPath string, validationClientName string) (string, error) {
+	remoteKeyPath string, validationClientName string, chefEnvironment string) (string, error) {
 
 	ui.Message("Creating configuration file 'client.rb'")
 
@@ -333,6 +337,7 @@ func (p *Provisioner) createConfig(ui packer.Ui, comm packer.Communicator,
 	}
 
 	configString, err := p.config.tpl.Process(tpl, &ConfigTemplate{
+		ChefEnvironment:            chefEnvironment,
 		EncryptedDataBagSecretPath: encryptedDataBagSecretPath,
 		NodeName:                   nodeName,
 		ServerUrl:                  serverUrl,
@@ -608,5 +613,8 @@ validation_key "{{.ValidationKeyPath}}"
 {{end}}
 {{if ne .NodeName ""}}
 node_name "{{.NodeName}}"
+{{end}}
+{{if ne .ChefEnvironment ""}}
+environment "{{.ChefEnvironment}}"
 {{end}}
 `
