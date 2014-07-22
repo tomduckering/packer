@@ -84,7 +84,7 @@ each category, the available configuration keys are alphabetized.
   device mappings to the AMI. The block device mappings allow for keys:
   "device\_name" (string), "virtual\_name" (string), "snapshot\_id" (string),
   "volume\_type" (string), "volume\_size" (integer), "delete\_on\_termination"
-  (boolean), "no\_device" (boolean), and "iops" (integer).
+  (boolean), "encrypted" (boolean), "no\_device" (boolean), and "iops" (integer).
   See [amazon-ebs](/docs/builders/amazon-ebs.html) for an example template.
 
 * `ami_description` (string) - The description to set for the resulting
@@ -133,6 +133,9 @@ each category, the available configuration keys are alphabetized.
 * `bundle_vol_command` (string) - The command to use to bundle the volume.
   See the "custom bundle commands" section below for more information.
 
+* `enhanced_networking` (boolean) - Enable enhanced networking (SriovNetSupport) on
+  HVM-compatible AMIs.
+
 * `iam_instance_profile` (string) - The name of an
   [IAM instance profile](http://docs.aws.amazon.com/IAM/latest/UserGuide/instance-profiles.html)
   to launch the EC2 instance with.
@@ -153,7 +156,7 @@ each category, the available configuration keys are alphabetized.
 
 * `security_group_ids` (array of strings) - A list of security groups as
   described above. Note that if this is specified, you must omit the
-  security_group_id.
+  `security_group_id`.
 
 * `ssh_port` (integer) - The port that SSH will be available on. This defaults
   to port 22.
