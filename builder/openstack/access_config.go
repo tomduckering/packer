@@ -1,6 +1,7 @@
 package openstack
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/mitchellh/packer/common"
 	"github.com/mitchellh/packer/packer"
@@ -20,6 +21,8 @@ type AccessConfig struct {
 	Provider  string `mapstructure:"provider"`
 	RawRegion string `mapstructure:"region"`
 	ProxyUrl  string `mapstructure:"proxy_url"`
+	TenantId  string `mapstructure:"tenant_id"`
+	Insecure  bool   `mapstructure:"insecure"`
 }
 
 // Auth returns a valid Auth object for access to openstack services, or
@@ -31,6 +34,7 @@ func (c *AccessConfig) Auth() (gophercloud.AccessProvider, error) {
 	c.Project = common.ChooseString(c.Project, os.Getenv("SDK_PROJECT"), os.Getenv("OS_TENANT_NAME"))
 	c.Provider = common.ChooseString(c.Provider, os.Getenv("SDK_PROVIDER"), os.Getenv("OS_AUTH_URL"))
 	c.RawRegion = common.ChooseString(c.RawRegion, os.Getenv("SDK_REGION"), os.Getenv("OS_REGION_NAME"))
+	c.TenantId = common.ChooseString(c.TenantId, os.Getenv("OS_TENANT_ID"))
 
 	// OpenStack's auto-generated openrc.sh files do not append the suffix
 	// /tokens to the authentication URL. This ensures it is present when
@@ -40,14 +44,21 @@ func (c *AccessConfig) Auth() (gophercloud.AccessProvider, error) {
 	}
 
 	authoptions := gophercloud.AuthOptions{
-		Username:    c.Username,
-		Password:    c.Password,
-		ApiKey:      c.ApiKey,
 		AllowReauth: true,
+
+		ApiKey:     c.ApiKey,
+		TenantId:   c.TenantId,
+		TenantName: c.Project,
+		Username:   c.Username,
+		Password:   c.Password,
 	}
 
-	if c.Project != "" {
-		authoptions.TenantName = c.Project
+	default_transport := &http.Transport{}
+
+	if c.Insecure {
+		cfg := new(tls.Config)
+		cfg.InsecureSkipVerify = true
+		default_transport.TLSClientConfig = cfg
 	}
 
 	// For corporate networks it may be the case where we want our API calls
@@ -60,7 +71,11 @@ func (c *AccessConfig) Auth() (gophercloud.AccessProvider, error) {
 
 		// The gophercloud.Context has a UseCustomClient method which
 		// would allow us to override with a new instance of http.Client.
-		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(url)}
+		default_transport.Proxy = http.ProxyURL(url)
+	}
+
+	if c.Insecure || c.ProxyUrl != "" {
+		http.DefaultTransport = default_transport
 	}
 
 	return gophercloud.Authenticate(c.Provider, authoptions)
@@ -80,10 +95,14 @@ func (c *AccessConfig) Prepare(t *packer.ConfigTemplate) []error {
 	}
 
 	templates := map[string]*string{
-		"username": &c.Username,
-		"password": &c.Password,
-		"apiKey":   &c.ApiKey,
-		"provider": &c.Provider,
+		"username":  &c.Username,
+		"password":  &c.Password,
+		"api_key":   &c.ApiKey,
+		"provider":  &c.Provider,
+		"project":   &c.Project,
+		"tenant_id": &c.TenantId,
+		"region":    &c.RawRegion,
+		"proxy_url": &c.ProxyUrl,
 	}
 
 	errs := make([]error, 0)

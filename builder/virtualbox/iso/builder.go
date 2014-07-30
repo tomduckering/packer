@@ -13,30 +13,23 @@ import (
 
 const BuilderId = "mitchellh.virtualbox"
 
-// These are the different valid mode values for "guest_additions_mode" which
-// determine how guest additions are delivered to the guest.
-const (
-	GuestAdditionsModeDisable string = "disable"
-	GuestAdditionsModeAttach         = "attach"
-	GuestAdditionsModeUpload         = "upload"
-)
-
 type Builder struct {
 	config config
 	runner multistep.Runner
 }
 
 type config struct {
-	common.PackerConfig          `mapstructure:",squash"`
-	vboxcommon.ExportConfig      `mapstructure:",squash"`
-	vboxcommon.ExportOpts        `mapstructure:",squash"`
-	vboxcommon.FloppyConfig      `mapstructure:",squash"`
-	vboxcommon.OutputConfig      `mapstructure:",squash"`
-	vboxcommon.RunConfig         `mapstructure:",squash"`
-	vboxcommon.ShutdownConfig    `mapstructure:",squash"`
-	vboxcommon.SSHConfig         `mapstructure:",squash"`
-	vboxcommon.VBoxManageConfig  `mapstructure:",squash"`
-	vboxcommon.VBoxVersionConfig `mapstructure:",squash"`
+	common.PackerConfig             `mapstructure:",squash"`
+	vboxcommon.ExportConfig         `mapstructure:",squash"`
+	vboxcommon.ExportOpts           `mapstructure:",squash"`
+	vboxcommon.FloppyConfig         `mapstructure:",squash"`
+	vboxcommon.OutputConfig         `mapstructure:",squash"`
+	vboxcommon.RunConfig            `mapstructure:",squash"`
+	vboxcommon.ShutdownConfig       `mapstructure:",squash"`
+	vboxcommon.SSHConfig            `mapstructure:",squash"`
+	vboxcommon.VBoxManageConfig     `mapstructure:",squash"`
+	vboxcommon.VBoxManagePostConfig `mapstructure:",squash"`
+	vboxcommon.VBoxVersionConfig    `mapstructure:",squash"`
 
 	BootCommand          []string `mapstructure:"boot_command"`
 	DiskSize             uint     `mapstructure:"disk_size"`
@@ -82,6 +75,7 @@ func (b *Builder) Prepare(raws ...interface{}) ([]string, error) {
 	errs = packer.MultiErrorAppend(errs, b.config.ShutdownConfig.Prepare(b.config.tpl)...)
 	errs = packer.MultiErrorAppend(errs, b.config.SSHConfig.Prepare(b.config.tpl)...)
 	errs = packer.MultiErrorAppend(errs, b.config.VBoxManageConfig.Prepare(b.config.tpl)...)
+	errs = packer.MultiErrorAppend(errs, b.config.VBoxManagePostConfig.Prepare(b.config.tpl)...)
 	errs = packer.MultiErrorAppend(errs, b.config.VBoxVersionConfig.Prepare(b.config.tpl)...)
 	warnings := make([]string, 0)
 
@@ -218,9 +212,9 @@ func (b *Builder) Prepare(raws ...interface{}) ([]string, error) {
 
 	validMode := false
 	validModes := []string{
-		GuestAdditionsModeDisable,
-		GuestAdditionsModeAttach,
-		GuestAdditionsModeUpload,
+		vboxcommon.GuestAdditionsModeDisable,
+		vboxcommon.GuestAdditionsModeAttach,
+		vboxcommon.GuestAdditionsModeUpload,
 	}
 
 	for _, mode := range validModes {
@@ -267,7 +261,12 @@ func (b *Builder) Run(ui packer.Ui, hook packer.Hook, cache packer.Cache) (packe
 	}
 
 	steps := []multistep.Step{
-		new(stepDownloadGuestAdditions),
+		&vboxcommon.StepDownloadGuestAdditions{
+			GuestAdditionsMode:   b.config.GuestAdditionsMode,
+			GuestAdditionsURL:    b.config.GuestAdditionsURL,
+			GuestAdditionsSHA256: b.config.GuestAdditionsSHA256,
+			Tpl:                  b.config.tpl,
+		},
 		&common.StepDownload{
 			Checksum:     b.config.ISOChecksum,
 			ChecksumType: b.config.ISOChecksumType,
@@ -287,7 +286,9 @@ func (b *Builder) Run(ui packer.Ui, hook packer.Hook, cache packer.Cache) (packe
 		new(stepCreateVM),
 		new(stepCreateDisk),
 		new(stepAttachISO),
-		new(stepAttachGuestAdditions),
+		&vboxcommon.StepAttachGuestAdditions{
+			GuestAdditionsMode: b.config.GuestAdditionsMode,
+		},
 		new(vboxcommon.StepAttachFloppy),
 		&vboxcommon.StepForwardSSH{
 			GuestPort:   b.config.SSHPort,
@@ -311,13 +312,21 @@ func (b *Builder) Run(ui packer.Ui, hook packer.Hook, cache packer.Cache) (packe
 		&vboxcommon.StepUploadVersion{
 			Path: b.config.VBoxVersionFile,
 		},
-		new(stepUploadGuestAdditions),
+		&vboxcommon.StepUploadGuestAdditions{
+			GuestAdditionsMode: b.config.GuestAdditionsMode,
+			GuestAdditionsPath: b.config.GuestAdditionsPath,
+			Tpl:                b.config.tpl,
+		},
 		new(common.StepProvision),
 		&vboxcommon.StepShutdown{
 			Command: b.config.ShutdownCommand,
 			Timeout: b.config.ShutdownTimeout,
 		},
 		new(vboxcommon.StepRemoveDevices),
+		&vboxcommon.StepVBoxManage{
+			Commands: b.config.VBoxManagePost,
+			Tpl:      b.config.tpl,
+		},
 		&vboxcommon.StepExport{
 			Format:     b.config.Format,
 			OutputDir:  b.config.OutputDir,

@@ -19,8 +19,8 @@ no provisioners are defined, but it will connect to the specified host via ssh.
 {
   "type":     "null",
   "host":     "127.0.0.1",
-  "username": "foo",
-  "password": "bar"
+  "ssh_username": "foo",
+  "ssh_password": "bar"
 }
 </pre>
 
@@ -30,7 +30,7 @@ Configuration options are organized below into two categories: required and
 optional. Within each category, the available options are alphabetized and
 described.
 
-Required:
+### Required:
 
 * `host` (string) - The hostname or IP address to connect to.
 
@@ -42,7 +42,7 @@ Required:
 
 * `ssh_username` (string) - The username to be used for the ssh connection.
 
-Optional:
+### Optional:
 
-* `port` (int) - port to connect to, defaults to 22.
+* `port` (integer) - ssh port to connect to, defaults to 22.
 

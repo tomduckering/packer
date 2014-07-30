@@ -31,6 +31,8 @@ const defaultConfig = `
 		"virtualbox-ovf": "packer-builder-virtualbox-ovf",
 		"vmware-iso": "packer-builder-vmware-iso",
 		"vmware-vmx": "packer-builder-vmware-vmx",
+		"parallels-iso": "packer-builder-parallels-iso",
+		"parallels-pvm": "packer-builder-parallels-pvm",
 		"null": "packer-builder-null"
 	},
 
@@ -45,7 +47,8 @@ const defaultConfig = `
 		"vagrant": "packer-post-processor-vagrant",
 		"vsphere": "packer-post-processor-vsphere",
 		"docker-push": "packer-post-processor-docker-push",
-		"docker-import": "packer-post-processor-docker-import"
+		"docker-import": "packer-post-processor-docker-import",
+		"vagrant-cloud": "packer-post-processor-vagrant-cloud"
 	},
 
 	"provisioners": {
