@@ -158,11 +158,26 @@ each category, the available configuration keys are alphabetized.
   described above. Note that if this is specified, you must omit the
   `security_group_id`.
 
+* `spot_price` (string) - The maximum hourly price to launch a spot instance
+  to create the AMI. It is a type of instances that EC2 starts when the maximum
+  price that you specify exceeds the current spot price. Spot price will be
+  updated based on available spot instance capacity and current spot Instance
+  requests. It may save you some costs. You can set this to "auto" for
+  Packer to automatically discover the best spot price.
+
+* `spot_price_auto_product` (string) - Required if `spot_price` is set to
+  "auto". This tells Packer what sort of AMI you're launching to find the best
+   spot price. This must be one of: `Linux/UNIX`, `SUSE Linux`, `Windows`,
+   `Linux/UNIX (Amazon VPC)`, `SUSE Linux (Amazon VPC)`, `Windows (Amazon VPC)`
+
 * `ssh_port` (integer) - The port that SSH will be available on. This defaults
   to port 22.
 
 * `ssh_private_key_file` (string) - Use this ssh private key file instead of
   a generated ssh key pair for connecting to the instance.
+
+* `ssh_private_ip` (bool) - If true, then SSH will always use the private
+  IP if available.
 
 * `ssh_timeout` (string) - The time to wait for SSH to become available
   before timing out. The format of this value is a duration such as "5s"
@@ -265,7 +280,8 @@ sudo -n ec2-bundle-vol \
 	-e {{.PrivatePath}}/* \
 	-d {{.Destination}} \
 	-p {{.Prefix}} \
-	--batch
+	--batch \
+	--no-filter
 ```
 
 The available template variables should be self-explanatory based on the
