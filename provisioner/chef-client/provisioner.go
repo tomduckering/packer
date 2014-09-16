@@ -68,7 +68,7 @@ type Provisioner struct {
 }
 
 type ConfigTemplate struct {
-	ChefEnvironment      string
+	ChefEnvironment            string
 	EncryptedDataBagSecretPath string
 	NodeName                   string
 	ServerUrl                  string
@@ -97,6 +97,31 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		return err
 	}
 	p.config.tpl.UserVars = p.config.PackerUserVars
+
+	// Accumulate any errors
+	errs := common.CheckUnusedConfig(md)
+
+	templates := map[string]*string{
+		"chef_environment":               &p.config.ChefEnvironment,
+		"chef_server_url":                &p.config.ServerUrl,
+		"config_template":                &p.config.ConfigTemplate,
+		"encrypted_data_bag_secret_path": &p.config.EncryptedDataBagSecretPath,
+		"execute_command":                &p.config.ExecuteCommand,
+		"install_command":                &p.config.InstallCommand,
+		"node_name":                      &p.config.NodeName,
+		"staging_dir":                    &p.config.StagingDir,
+		"validation_client_name":         &p.config.ValidationClientName,
+		"validation_key_path":            &p.config.ValidationKeyPath,
+	}
+
+	for n, ptr := range templates {
+		var err error
+		*ptr, err = p.config.tpl.Process(*ptr, nil)
+		if err != nil {
+			errs = packer.MultiErrorAppend(
+				errs, fmt.Errorf("Error processing %s: %s", n, err))
+		}
+	}
 
 	if p.config.GuestOSType == "" {
 		p.config.GuestOSType = provisioner.DefaultOSType
@@ -128,28 +153,6 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 
 	if p.config.RunList == nil {
 		p.config.RunList = make([]string, 0)
-	}
-
-	// Accumulate any errors
-	errs := common.CheckUnusedConfig(md)
-
-	templates := map[string]*string{
-		"chef_environment": &p.config.ChefEnvironment,
-		"chef_server_url":                &p.config.ServerUrl,
-		"config_template":                &p.config.ConfigTemplate,
-		"node_name":                      &p.config.NodeName,
-		"staging_dir":                    &p.config.StagingDir,
-		"validation_key_path":            &p.config.ValidationKeyPath,
-		"encrypted_data_bag_secret_path": &p.config.EncryptedDataBagSecretPath,
-	}
-
-	for n, ptr := range templates {
-		var err error
-		*ptr, err = p.config.tpl.Process(*ptr, nil)
-		if err != nil {
-			errs = packer.MultiErrorAppend(
-				errs, fmt.Errorf("Error processing %s: %s", n, err))
-		}
 	}
 
 	sliceTemplates := map[string][]string{
@@ -349,7 +352,7 @@ func (p *Provisioner) createConfig(ui packer.Ui, comm packer.Communicator,
 	}
 
 	remotePath := filepath.ToSlash(filepath.Join(p.config.StagingDir, "client.rb"))
-	if err := comm.Upload(remotePath, bytes.NewReader([]byte(configString))); err != nil {
+	if err := comm.Upload(remotePath, bytes.NewReader([]byte(configString)), nil); err != nil {
 		return "", err
 	}
 
@@ -378,7 +381,7 @@ func (p *Provisioner) createJson(ui packer.Ui, comm packer.Communicator) (string
 
 	// Upload the bytes
 	remotePath := filepath.ToSlash(filepath.Join(p.config.StagingDir, "first-boot.json"))
-	if err := comm.Upload(remotePath, bytes.NewReader(jsonBytes)); err != nil {
+	if err := comm.Upload(remotePath, bytes.NewReader(jsonBytes), nil); err != nil {
 		return "", err
 	}
 
@@ -508,7 +511,7 @@ func (p *Provisioner) copyValidationKey(ui packer.Ui, comm packer.Communicator, 
 	}
 	defer f.Close()
 
-	if err := comm.Upload(remotePath, f); err != nil {
+	if err := comm.Upload(remotePath, f, nil); err != nil {
 		return err
 	}
 
