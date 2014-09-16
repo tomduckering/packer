@@ -135,3 +135,44 @@ func TestProvisionerPrepare_serverUrl(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 }
+
+func TestProvisionerPrepare_keyPaths(t *testing.T) {
+	commands := []string{
+		"validation_key_path",
+		"encrypted_data_bag_secret_path",
+	}
+
+	for _, command := range commands {
+		var p Provisioner
+
+		// Test not set
+		config := testConfig()
+		delete(config, command)
+		err := p.Prepare(config)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+
+		// Test invalid template
+		config = testConfig()
+		config[command] = "{{if NOPE}}"
+		err = p.Prepare(config)
+		if err == nil {
+			t.Fatal("should error")
+		}
+
+		// Test with a file
+		tf, err := ioutil.TempFile("", "packer")
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		defer os.Remove(tf.Name())
+
+		config = testConfig()
+		config[command] = tf.Name()
+		err = p.Prepare(config)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+	}
+}
