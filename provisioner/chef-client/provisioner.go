@@ -313,7 +313,7 @@ func (p *Provisioner) uploadFile(ui packer.Ui, comm packer.Communicator, dst str
 	}
 	defer f.Close()
 
-	return comm.Upload(dst, f)
+	return comm.Upload(dst, f, nil)
 }
 
 func (p *Provisioner) createConfig(ui packer.Ui, comm packer.Communicator,
