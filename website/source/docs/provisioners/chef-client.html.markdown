@@ -1,13 +1,15 @@
 ---
 layout: "docs"
 page_title: "Chef-Client Provisioner"
+description: |-
+  The Chef Client Packer provisioner installs and configures software on machines built by Packer using chef-client. Packer configures a Chef client to talk to a remote Chef Server to provision the machine.
 ---
 
 # Chef Client Provisioner
 
 Type: `chef-client`
 
-The Chef Client provisioner installs and configures software on machines built
+The Chef Client Packer provisioner installs and configures software on machines built
 by Packer using [chef-client](http://docs.opscode.com/chef_client.html).
 Packer configures a Chef client to talk to a remote Chef Server to
 provision the machine.
@@ -20,21 +22,21 @@ installed, using the official Chef installers provided by Opscode.
 The example below is fully functional. It will install Chef onto the
 remote machine and run Chef client.
 
-<pre class="prettyprint">
+```javascript
 {
   "type": "chef-client",
   "server_url": "https://mychefserver.com/"
 }
-</pre>
+```
 
-Note: to properly clean up the Chef node and client, you must have
-`knife` on your path and properly configured.
+Note: to properly clean up the Chef node and client the machine on which
+packer is running must have knife on the path and configured globally,
+i.e, ~/.chef/knife.rb must be present and configured for the target chef server
 
 ## Configuration Reference
 
 The reference of available configuration options is listed below. No
-configuration is actually required, but `node_name` is recommended
-since it will allow the provisioner to clean up the node/client.
+configuration is actually required.
 
 * `chef_environment` (string) - The name of the chef_environment sent to the
   Chef server. By default this is empty and will not use an environment.
@@ -66,8 +68,7 @@ since it will allow the provisioner to clean up the node/client.
   node attributes while running Chef.
 
 * `node_name` (string) - The name of the node to register with the Chef
-  Server. This is optional and by defalt is empty. If you don't set this,
-  Packer can't clean up the node from the Chef Server using knife.
+  Server. This is optional and by default is packer-{{uuid}}.
 
 * `prevent_sudo` (boolean) - By default, the configured commands that are
   executed to install and run Chef are executed with `sudo`. If this is true,
@@ -85,7 +86,6 @@ since it will allow the provisioner to clean up the node/client.
 
 * `skip_clean_node` (boolean) - If true, Packer won't remove the node
   from the Chef server after it is done running. By default, this is false.
-  This will be true by default if `node_name` is not set.
 
 * `skip_install` (boolean) - If true, Chef will not automatically be installed
   on the machine using the Opscode omnibus installers.
@@ -116,7 +116,7 @@ configuration template if you'd like to set custom configurations.
 
 The default value for the configuration template is:
 
-```
+```liquid
 log_level        :info
 log_location     STDOUT
 chef_server_url  "{{.ServerUrl}}"
@@ -131,9 +131,7 @@ validation_client_name "chef-validator"
 {{if ne .ValidationKeyPath ""}}
 validation_key "{{.ValidationKeyPath}}"
 {{end}}
-{{if ne .NodeName ""}}
 node_name "{{.NodeName}}"
-{{end}}
 ```
 
 This template is a [configuration template](/docs/templates/configuration-templates.html)
@@ -150,7 +148,7 @@ and has a set of variables available to use:
 By default, Packer uses the following command (broken across multiple lines
 for readability) to execute Chef:
 
-```
+```liquid
 {{if .Sudo}}sudo {{end}}chef-client \
   --no-color \
   -c {{.ConfigPath}} \
@@ -184,7 +182,7 @@ By default, Packer uses the following command (broken across multiple lines
 for readability) to install Chef. This command can be customized if you want
 to install Chef in another way.
 
-```
+```text
 curl -L https://www.opscode.com/chef/install.sh | \
   {{if .Sudo}}sudo{{end}} bash
 ```

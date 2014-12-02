@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/packer/common"
+	"github.com/mitchellh/packer/common/uuid"
 	"github.com/mitchellh/packer/packer"
 	"github.com/mitchellh/packer/provisioner"
 )
@@ -235,7 +236,11 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 }
 
 func (p *Provisioner) Provision(ui packer.Ui, comm packer.Communicator) error {
+
 	nodeName := p.config.NodeName
+	if nodeName == "" {
+		nodeName = fmt.Sprintf("packer-%s", uuid.TimeOrderedUUID())
+	}
 	remoteValidationKeyPath := ""
 	serverUrl := p.config.ServerUrl
 
@@ -390,6 +395,7 @@ func (p *Provisioner) createJson(ui packer.Ui, comm packer.Communicator) (string
 
 func (p *Provisioner) createDir(ui packer.Ui, comm packer.Communicator, dir string) error {
 	ui.Message(fmt.Sprintf("Creating directory: %s", dir))
+
 	cmd := &packer.RemoteCmd{
 		Command: p.guestCommands.CreateDir(dir),
 	}
@@ -440,6 +446,7 @@ func (p *Provisioner) cleanClient(ui packer.Ui, comm packer.Communicator, node s
 
 func (p *Provisioner) removeDir(ui packer.Ui, comm packer.Communicator, dir string) error {
 	ui.Message(fmt.Sprintf("Removing directory: %s", dir))
+
 	cmd := &packer.RemoteCmd{
 		Command: p.guestCommands.RemoveDir(dir),
 	}
@@ -614,9 +621,7 @@ validation_client_name "chef-validator"
 {{if ne .ValidationKeyPath ""}}
 validation_key "{{.ValidationKeyPath}}"
 {{end}}
-{{if ne .NodeName ""}}
 node_name "{{.NodeName}}"
-{{end}}
 {{if ne .ChefEnvironment ""}}
 environment "{{.ChefEnvironment}}"
 {{end}}
