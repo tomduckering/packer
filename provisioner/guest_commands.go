@@ -30,26 +30,27 @@ var guestOSTypeCommands = map[string]guestOSTypeCommand{
 
 type GuestCommands struct {
 	GuestOSType string
+	Sudo        bool
 }
 
-func NewGuestCommands(osType string) (*GuestCommands, error) {
+func NewGuestCommands(osType string, sudo bool) (*GuestCommands, error) {
 	_, ok := guestOSTypeCommands[osType]
 	if !ok {
 		return nil, fmt.Errorf("Invalid osType: \"%s\"", osType)
 	}
-	return &GuestCommands{GuestOSType: osType}, nil
+	return &GuestCommands{GuestOSType: osType, Sudo: sudo}, nil
 }
 
 func (g *GuestCommands) ChmodExecutable(path string) string {
-	return fmt.Sprintf(g.commands().chmodExecutable, g.escapePath(path))
+	return g.sudo(fmt.Sprintf(g.commands().chmodExecutable, g.escapePath(path)))
 }
 
 func (g *GuestCommands) CreateDir(path string) string {
-	return fmt.Sprintf(g.commands().mkdir, g.escapePath(path))
+	return g.sudo(fmt.Sprintf(g.commands().mkdir, g.escapePath(path)))
 }
 
 func (g *GuestCommands) RemoveDir(path string) string {
-	return fmt.Sprintf(g.commands().removeDir, g.escapePath(path))
+	return g.sudo(fmt.Sprintf(g.commands().removeDir, g.escapePath(path)))
 }
 
 func (g *GuestCommands) commands() guestOSTypeCommand {
@@ -57,8 +58,15 @@ func (g *GuestCommands) commands() guestOSTypeCommand {
 }
 
 func (g *GuestCommands) escapePath(path string) string {
-	if g.GuestOSType == UnixOSType {
-		return path
+	if g.GuestOSType == WindowsOSType {
+		return strings.Replace(path, " ", "` ", -1)
 	}
-	return strings.Replace(path, " ", "` ", -1)
+	return path
+}
+
+func (g *GuestCommands) sudo(cmd string) string {
+	if g.GuestOSType == UnixOSType && g.Sudo {
+		return "sudo " + cmd
+	}
+	return cmd
 }

@@ -5,14 +5,15 @@ import (
 )
 
 func TestNewGuestCommands(t *testing.T) {
-	_, err := NewGuestCommands("Amiga")
+	_, err := NewGuestCommands("Amiga", true)
 	if err == nil {
 		t.Fatalf("Should have returned an err for unsupported OS type")
 	}
 }
 
 func TestCreateDir(t *testing.T) {
-	guestCmd, err := NewGuestCommands(UnixOSType)
+	// *nix OS
+	guestCmd, err := NewGuestCommands(UnixOSType, false)
 	if err != nil {
 		t.Fatalf("Failed to create new GuestCommands for OS: %s", UnixOSType)
 	}
@@ -21,8 +22,18 @@ func TestCreateDir(t *testing.T) {
 		t.Fatalf("Unexpected Unix create dir cmd: %s", cmd)
 	}
 
+	// *nix OS w/sudo
+	guestCmd, err = NewGuestCommands(UnixOSType, true)
+	if err != nil {
+		t.Fatalf("Failed to create new sudo GuestCommands for OS: %s", UnixOSType)
+	}
+	cmd = guestCmd.CreateDir("/tmp/tempdir")
+	if cmd != "sudo mkdir -p '/tmp/tempdir'" {
+		t.Fatalf("Unexpected Unix sudo create dir cmd: %s", cmd)
+	}
+
 	// Windows OS
-	guestCmd, err = NewGuestCommands(WindowsOSType)
+	guestCmd, err = NewGuestCommands(WindowsOSType, false)
 	if err != nil {
 		t.Fatalf("Failed to create new GuestCommands for OS: %s", WindowsOSType)
 	}
@@ -39,7 +50,8 @@ func TestCreateDir(t *testing.T) {
 }
 
 func TestChmodExecutable(t *testing.T) {
-	guestCmd, err := NewGuestCommands(UnixOSType)
+	// *nix
+	guestCmd, err := NewGuestCommands(UnixOSType, false)
 	if err != nil {
 		t.Fatalf("Failed to create new GuestCommands for OS: %s", UnixOSType)
 	}
@@ -48,7 +60,18 @@ func TestChmodExecutable(t *testing.T) {
 		t.Fatalf("Unexpected Unix chmod +x cmd: %s", cmd)
 	}
 
-	guestCmd, err = NewGuestCommands(WindowsOSType)
+	// sudo *nix
+	guestCmd, err = NewGuestCommands(UnixOSType, true)
+	if err != nil {
+		t.Fatalf("Failed to create new sudo GuestCommands for OS: %s", UnixOSType)
+	}
+	cmd = guestCmd.ChmodExecutable("/usr/local/bin/script.sh")
+	if cmd != "sudo chmod +x '/usr/local/bin/script.sh'" {
+		t.Fatalf("Unexpected Unix chmod +x cmd: %s", cmd)
+	}
+
+	// Windows
+	guestCmd, err = NewGuestCommands(WindowsOSType, false)
 	if err != nil {
 		t.Fatalf("Failed to create new GuestCommands for OS: %s", WindowsOSType)
 	}
@@ -59,7 +82,8 @@ func TestChmodExecutable(t *testing.T) {
 }
 
 func TestRemoveDir(t *testing.T) {
-	guestCmd, err := NewGuestCommands(UnixOSType)
+	// *nix
+	guestCmd, err := NewGuestCommands(UnixOSType, false)
 	if err != nil {
 		t.Fatalf("Failed to create new GuestCommands for OS: %s", UnixOSType)
 	}
@@ -68,8 +92,18 @@ func TestRemoveDir(t *testing.T) {
 		t.Fatalf("Unexpected Unix remove dir cmd: %s", cmd)
 	}
 
+	// sudo *nix
+	guestCmd, err = NewGuestCommands(UnixOSType, true)
+	if err != nil {
+		t.Fatalf("Failed to create new sudo GuestCommands for OS: %s", UnixOSType)
+	}
+	cmd = guestCmd.RemoveDir("/tmp/somedir")
+	if cmd != "sudo rm -rf '/tmp/somedir'" {
+		t.Fatalf("Unexpected Unix sudo remove dir cmd: %s", cmd)
+	}
+
 	// Windows OS
-	guestCmd, err = NewGuestCommands(WindowsOSType)
+	guestCmd, err = NewGuestCommands(WindowsOSType, false)
 	if err != nil {
 		t.Fatalf("Failed to create new GuestCommands for OS: %s", WindowsOSType)
 	}
