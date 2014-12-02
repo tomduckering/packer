@@ -15,6 +15,7 @@ type vmxTemplateData struct {
 	GuestOS  string
 	DiskName string
 	ISOPath  string
+	Version  string
 }
 
 type additionalDiskTemplateData struct {
@@ -46,6 +47,7 @@ func (s *stepCreateVMX) Run(state multistep.StateBag) multistep.StepAction {
 		Name:     config.VMName,
 		GuestOS:  config.GuestOSType,
 		DiskName: config.DiskName,
+		Version:  config.Version,
 		ISOPath:  isoPath,
 	}
 
@@ -204,7 +206,7 @@ tools.upgrade.policy = "upgradeAtPowerCycle"
 usb.pciSlotNumber = "32"
 usb.present = "FALSE"
 virtualHW.productCompatibility = "hosted"
-virtualHW.version = "9"
+virtualHW.version = "{{ .Version }}"
 vmci0.id = "1861462627"
 vmci0.pciSlotNumber = "35"
 vmci0.present = "TRUE"
